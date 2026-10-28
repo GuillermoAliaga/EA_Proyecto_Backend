@@ -10,6 +10,10 @@ import authorRoutes from './routes/Author';
 import bookRoutes from './routes/Book';
 import swaggerUi from 'swagger-ui-express'; // permite mostrar Swagger en el navegador.
 import swaggerDocument from './config/swagger'; // importa el documento que hemos creado en swagger.ts
+import cookieParser from 'cookie-parser';
+import cors from 'cors';
+import authRoutes from './routes/Auth';
+import userRoutes from './routes/User';
 
 const router = express();
 
@@ -26,16 +30,20 @@ mongoose
 const StartServer = () => {
     router.use(Logger);
 
-    router.use(express.urlencoded({ extended: true }));
-    router.use(express.json());
+router.use(express.urlencoded({ extended: true }));
+router.use(express.json());
+router.use(cookieParser());
 
-    /** CORS */
-    router.use(Cors);
+/** CORS */
+// Con cookies no vale origin '*': hay que indicar el origen del front y activar credentials
+router.use(cors({ origin: config.cors.origin, credentials: true }));
 
-    /** Routes */
-    router.use('/authors', authorRoutes);
-    router.use('/books', bookRoutes);
-    router.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+/** Routes */
+router.use('/auth', authRoutes);
+router.use('/users', userRoutes);
+router.use('/authors', authorRoutes);
+router.use('/books', bookRoutes);
+router.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
     /** Healthcheck */
     /**
