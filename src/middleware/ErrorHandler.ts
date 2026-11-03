@@ -7,15 +7,11 @@ import Logging from '../library/Logging';
 type DatabaseError = Error & { code?: number; status?: number; details?: unknown[] };
 
 export const ErrorHandler: ErrorRequestHandler = (error: DatabaseError, req, res, next) => {
-
     // Si es un error 404 solo mostramos un aviso en el log
     // No hace falta tratarlo como un error grave del servidor
     if (error.message === 'Not found') {
-
         Logging.warning(`Not found: ${req.method} ${req.originalUrl}`);
-
     } else {
-
         // Para el resto de errores los guardamos como errores normales
         Logging.error(error);
     }
@@ -23,13 +19,11 @@ export const ErrorHandler: ErrorRequestHandler = (error: DatabaseError, req, res
     // Comprobamos si ya se ha empezado a enviar una respuesta
     // Si es asi dejamos que Express continue gestionando el error
     if (res.headersSent) {
-
         return next(error);
     }
 
     // El codigo 11000 indica que se ha intentado introducir un valor duplicado
     if (error.code === 11000) {
-
         // Buscamos cual es el campo que esta duplicado
         const duplicatedField = Object.keys((error as DatabaseError & { keyPattern?: Record<string, unknown> }).keyPattern ?? {})[0];
 
@@ -42,7 +36,6 @@ export const ErrorHandler: ErrorRequestHandler = (error: DatabaseError, req, res
     // Si el error tiene detalles significa que tenemos informacion sobre la validacion
     // Por ejemplo Joi puede indicar que campo no cumple las condiciones
     if (error.details) {
-
         // Cogemos el primer error de validacion para mostrar su mensaje
         const [firstDetail] = error.details as { message?: string }[];
 
@@ -53,13 +46,11 @@ export const ErrorHandler: ErrorRequestHandler = (error: DatabaseError, req, res
     // Estos errores suelen estar relacionados con datos que no tienen el formato esperado
     // En estos casos devolvemos un error 400 de peticion incorrecta
     if (error.name === 'ValidationError' || error.name === 'CastError') {
-
         return res.status(400).json({ message: error.message });
     }
 
     // Comprobamos de nuevo si el error corresponde a un recurso que no existe
     if (error.name === 'Error' && error.message === 'Not found') {
-
         return res.status(404).json({ message: error.message });
     }
 
@@ -67,14 +58,12 @@ export const ErrorHandler: ErrorRequestHandler = (error: DatabaseError, req, res
     // TokenExpiredError: el token estaba bien firmado pero ya ha caducado (exp).
     // El front renueva el token solo cuando recibe exactamente este mensaje.
     if (error.name === 'TokenExpiredError') {
-
         return res.status(401).json({ message: 'El token ha caducado' });
     }
 
     // JsonWebTokenError: la firma no coincide o el token esta mal formado.
     // Renovar no arregla esto, asi que el front cierra la sesion.
     if (error.name === 'JsonWebTokenError' || error.name === 'NotBeforeError') {
-
         return res.status(401).json({ message: 'Token no válido' });
     }
 
@@ -91,4 +80,3 @@ export const ErrorHandler: ErrorRequestHandler = (error: DatabaseError, req, res
 
 // Exportamos el manejador de errores para poder utilizarlo en la aplicacion
 export default ErrorHandler;
-
