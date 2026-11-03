@@ -4,18 +4,16 @@ import controller from '../controllers/Auth';
 
 import { Schemas, ValidateJoi } from '../middleware/Joi';
 
-// Rutas de autenticacion. Son publicas: no piden token (refresh se autentica con su propio
-// refresh token, que va en el body). Cada una valida el body con Joi y llama a su controlador.
+// Estas rutas permiten crear una cuenta, iniciar sesión, recuperar el acceso y salir.
 const router = express.Router();
 router.post('/register', ValidateJoi(Schemas.auth.register), controller.register);
 router.post('/login', ValidateJoi(Schemas.auth.login), controller.login);
-// EXPLICAR EN EL VÍDEO
-router.post('/refresh',controller.refresh);
+// La renovación usa la cookie protegida y no necesita datos en el cuerpo.
+router.post('/refresh', controller.refresh);
 router.post('/logout', controller.logout);
 export = router;
 
-// Documentacion de Swagger de las tres rutas.
-// security: [] quita el candado: son las unicas rutas que no necesitan token.
+// La documentación describe las rutas de autenticación disponibles.
 
 /**
  * @openapi

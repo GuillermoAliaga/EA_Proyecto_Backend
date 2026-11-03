@@ -22,9 +22,7 @@ const readMe = async (req: Request, res: Response, next: NextFunction) => {
     }
 };
 
-// ----------------------------------------------------------------------------
-// ENDPOINTS CRUD Y BACKOFFICE (Paginación, Filtros y Soft Delete)
-// ----------------------------------------------------------------------------
+// Operaciones de usuarios para el panel de administración.
 
 // Crear usuario nuevo (Alta directa desde Admin o Registro)
 const createUser = async (req: Request, res: Response, next: NextFunction) => {
@@ -74,6 +72,20 @@ const readAllPaginated = async (req: Request, res: Response, next: NextFunction)
     }
 };
 
+const readChatUsers = async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+        return res.status(401).json({ message: 'Falta el token' });
+    }
+
+    try {
+        // Devolvemos solo los datos básicos necesarios para iniciar una conversación.
+        const users = await UserService.getChatUsers(req.user.id);
+        return res.status(200).json({ users });
+    } catch (error) {
+        return next(error);
+    }
+};
+
 // Actualizar datos de usuario
 const updateUser = async (req: Request<{ userId: string }>, res: Response, next: NextFunction) => {
     const userId = req.params.userId;
@@ -90,7 +102,7 @@ const updateUser = async (req: Request<{ userId: string }>, res: Response, next:
     }
 };
 
-// Soft Delete unitario (borrado lógico)
+// Archiva una cuenta sin eliminar sus datos.
 const softDeleteUser = async (req: Request<{ userId: string }>, res: Response, next: NextFunction) => {
     const userId = req.params.userId;
 
@@ -106,7 +118,7 @@ const softDeleteUser = async (req: Request<{ userId: string }>, res: Response, n
     }
 };
 
-// Soft Delete masivo (bulk)
+// Archiva varias cuentas en una sola operación.
 const bulkSoftDelete = async (req: Request<{}, {}, { ids: string[] }>, res: Response, next: NextFunction) => {
     try {
         const { ids } = req.body;
@@ -122,7 +134,7 @@ const bulkSoftDelete = async (req: Request<{}, {}, { ids: string[] }>, res: Resp
     }
 };
 
-// Restaurar usuario (Solo Admin)
+// Recupera una cuenta archivada.
 const restoreUser = async (req: Request<{ userId: string }>, res: Response, next: NextFunction) => {
     const userId = req.params.userId;
 
@@ -138,7 +150,7 @@ const restoreUser = async (req: Request<{ userId: string }>, res: Response, next
     }
 };
 
-// Hard Delete unitario (borrado físico)
+// Elimina una cuenta de forma definitiva.
 const hardDeleteUser = async (req: Request<{ userId: string }>, res: Response, next: NextFunction) => {
     const userId = req.params.userId;
 
@@ -154,7 +166,7 @@ const hardDeleteUser = async (req: Request<{ userId: string }>, res: Response, n
     }
 };
 
-// Hard Delete masivo (bulk)
+// Elimina varias cuentas de forma definitiva.
 const bulkHardDelete = async (req: Request<{}, {}, { ids: string[] }>, res: Response, next: NextFunction) => {
     try {
         const { ids } = req.body;
@@ -175,6 +187,7 @@ export default {
     createUser,
     readUser,
     readAllPaginated,
+    readChatUsers,
     updateUser,
     restoreUser,
     softDeleteUser,

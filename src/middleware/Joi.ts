@@ -192,13 +192,10 @@ export const Schemas = {
     // ------------------------------------------------------------------------
     report: {
         create: Joi.object<IReport>({
-            reporterId: Joi.string().regex(OBJECT_ID).optional(),
             targetType: Joi.string().valid('ACTIVITY', 'USER').required(),
             targetId: Joi.string().regex(OBJECT_ID).required(),
             reason: Joi.string().valid('SPAM', 'INAPPROPRIATE', 'NO_SHOW', 'FAKE_LOCATION', 'OTHER').required(),
             description: Joi.string().min(5).max(1000).required(),
-            status: Joi.string().valid('PENDING', 'REVIEWED', 'RESOLVED', 'DISMISSED').default('PENDING'),
-            adminNotes: Joi.string().max(500).allow('').optional()
         }),
     auth: {
   register: Joi.object({

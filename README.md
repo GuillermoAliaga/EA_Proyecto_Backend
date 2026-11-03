@@ -65,19 +65,19 @@ cp .env.example .env
 |---|---|---|
 | `MONGO_URL` | Dirección de tu MongoDB | `mongodb://127.0.0.1:27017/seminari5` |
 | `SERVER_PORT` | Puerto en el que escucha la API | `1337` |
-| `CORS_ORIGIN` | Desde qué dirección se puede llamar a la API desde un navegador | `*` (cualquiera) |
+| `CORS_ORIGIN` | Desde qué dirección se puede llamar a la API desde un navegador | `http://localhost:4200` |
 
 ## Llenar la base de datos (la primera vez)
 
-Si arrancas con la base de datos vacía, la API funciona pero no devuelve nada. Para tener datos con
-los que probar, hay 5 autores y 12 libros de ejemplo en `src/seed-data.ts`:
+Si arrancas con la base de datos vacía, la API funciona pero no devuelve nada. Para crear los usuarios,
+actividades y reportes de ejemplo, ejecuta:
 
 ```
 npm run seed
 ```
 
-Este comando solo inserta los datos si la base de datos está vacía. Si ya tienes datos de pruebas
-anteriores, o vienen de una versión antigua de los modelos, hay que borrarlos y volver a crearlos:
+Este comando inserta los datos de ejemplo cuando la base de datos está vacía. Si ya hay datos, los
+conserva y crea el administrador requerido si todavía no existe. Para reinicializar las colecciones:
 
 ```
 npm run seed -- --reset
@@ -85,10 +85,10 @@ npm run seed -- --reset
 
 Siempre trabaja sobre la base de datos de tu `.env`.
 
-Todos los autores de ejemplo tienen la contraseña `seminari5`, y está escrita a la vista en
-`src/seed-data.ts`. Es un proyecto de clase: las contraseñas son públicas a propósito, para que
-cualquiera que clone el repositorio pueda entrar con cualquier usuario. En la base de datos sí se
-guardan cifradas, porque el modelo las cifra antes de guardarlas.
+Credenciales del administrador de desarrollo: `admin@backoffice.com` / `admin123`. La contraseña
+está en `src/seed-data.ts` y el modelo la cifra antes de almacenarla. Si ese correo ya existe en la
+base de datos, el seed no cambia su contraseña; usa `npm run seed -- --reset` únicamente si quieres
+reinicializar los datos.
 
 ## Ejecutar
 
@@ -99,6 +99,16 @@ npm run dev
 
 Para comprobar que responde, abre http://localhost:1337/ping en el navegador. Debe devolver `{"hello":"world"}`.
 La documentación de la API (Swagger) está en http://localhost:1337/api-docs.
+
+## Chat en tiempo real
+
+Socket.IO se conecta al mismo servidor HTTP y puerto que la API (`SERVER_PORT`, por defecto `1337`).
+El origen del frontend debe coincidir con `CORS_ORIGIN` (por defecto `http://localhost:4200`).
+El cliente envía el access token en el handshake (`auth: { token }`); el backend valida el token y
+emite los eventos del chat. Los mensajes se guardan en MongoDB.
+
+Después de instalar dependencias nuevas o cambiar el servidor, reinicia `npm run dev`. Para la
+versión compilada, ejecuta `npm run build` antes de `npm start`.
 
 Para ejecutar la versión compilada, como se haría en un servidor:
 ```

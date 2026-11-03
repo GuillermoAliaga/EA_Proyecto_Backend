@@ -1,10 +1,11 @@
 import express from 'express';
 import controller from '../controllers/User';
 import { ValidateId, ValidateJoi, Schemas } from '../middleware/Joi';
-import { VerifyToken } from '../middleware/VerifyToken';
+import { RequireAdmin, VerifyToken } from '../middleware/VerifyToken';
 
 const router = express.Router();
 
+// El chat usa una ruta protegida con perfiles mínimos y el resto de rutas es solo para ADMIN.
 /**
  * @openapi
  * components:
@@ -107,6 +108,22 @@ router.get('/me', VerifyToken, controller.readMe);
 
 /**
  * @openapi
+ * /users/chat-users:
+ *   get:
+ *     tags: [Users]
+ *     summary: Lista los perfiles mínimos de usuarios activos para el chat
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de usuarios sin el usuario autenticado
+ *       401:
+ *         description: No autorizado
+ */
+router.get('/chat-users', VerifyToken, controller.readChatUsers);
+
+/**
+ * @openapi
  * /users:
  *   post:
  *     tags: [Users]
@@ -125,7 +142,7 @@ router.get('/me', VerifyToken, controller.readMe);
  *       422:
  *         description: Error de validación de Joi
  */
-router.post('/', ValidateJoi(Schemas.user.create), controller.createUser);
+router.post('/', VerifyToken, RequireAdmin, ValidateJoi(Schemas.user.create), controller.createUser);
 
 /**
  * @openapi
@@ -149,6 +166,12 @@ router.post('/', ValidateJoi(Schemas.user.create), controller.createUser);
  *         schema: { type: string }
  *         description: Búsqueda por nombre o email
  *       - in: query
+ *         name: sortBy
+ *         schema: { type: string, default: createdAt }
+ *       - in: query
+ *         name: sortOrder
+ *         schema: { type: string, enum: [asc, desc], default: desc }
+ *       - in: query
  *         name: role
  *         schema: { type: string, enum: [USER, STORE_HOST, ADMIN] }
  *       - in: query
@@ -161,7 +184,7 @@ router.post('/', ValidateJoi(Schemas.user.create), controller.createUser);
  *       401:
  *         description: No autorizado
  */
-router.get('/', VerifyToken, controller.readAllPaginated);
+router.get('/', VerifyToken, RequireAdmin, controller.readAllPaginated);
 
 /**
  * @openapi
@@ -184,7 +207,7 @@ router.get('/', VerifyToken, controller.readAllPaginated);
  *       404:
  *         description: Usuario no encontrado
  */
-router.get('/:userId', VerifyToken, ValidateId('userId'), controller.readUser);
+router.get('/:userId', VerifyToken, RequireAdmin, ValidateId('userId'), controller.readUser);
 
 /**
  * @openapi
@@ -213,7 +236,7 @@ router.get('/:userId', VerifyToken, ValidateId('userId'), controller.readUser);
  *       404:
  *         description: Usuario no encontrado
  */
-router.put('/:userId', VerifyToken, ValidateId('userId'), ValidateJoi(Schemas.user.update), controller.updateUser);
+router.put('/:userId', VerifyToken, RequireAdmin, ValidateId('userId'), ValidateJoi(Schemas.user.update), controller.updateUser);
 
 /**
  * @openapi
@@ -241,7 +264,7 @@ router.put('/:userId', VerifyToken, ValidateId('userId'), ValidateJoi(Schemas.us
  *       400:
  *         description: Array de IDs ausente o mal formado
  */
-router.patch('/bulk-soft-delete', VerifyToken, controller.bulkSoftDelete);
+router.patch('/bulk-soft-delete', VerifyToken, RequireAdmin, controller.bulkSoftDelete);
 
 /**
  * @openapi
@@ -266,7 +289,7 @@ router.patch('/bulk-soft-delete', VerifyToken, controller.bulkSoftDelete);
  *       204:
  *         description: Usuarios eliminados físicamente de la BD
  */
-router.delete('/bulk', VerifyToken, controller.bulkHardDelete);
+router.delete('/bulk', VerifyToken, RequireAdmin, controller.bulkHardDelete);
 
 /**
  * @openapi
@@ -287,7 +310,7 @@ router.delete('/bulk', VerifyToken, controller.bulkHardDelete);
  *       404:
  *         description: Usuario no encontrado
  */
-router.patch('/:userId/soft-delete', VerifyToken, ValidateId('userId'), controller.softDeleteUser);
+router.patch('/:userId/soft-delete', VerifyToken, RequireAdmin, ValidateId('userId'), controller.softDeleteUser);
 
 /**
  * @openapi
@@ -308,7 +331,7 @@ router.patch('/:userId/soft-delete', VerifyToken, ValidateId('userId'), controll
  *       404:
  *         description: Usuario no encontrado
  */
-router.delete('/:userId', VerifyToken, ValidateId('userId'), controller.hardDeleteUser);
+router.delete('/:userId', VerifyToken, RequireAdmin, ValidateId('userId'), controller.hardDeleteUser);
 
 /**
  * @openapi
@@ -329,6 +352,6 @@ router.delete('/:userId', VerifyToken, ValidateId('userId'), controller.hardDele
  *       404:
  *         description: Usuario no encontrado
  */
-router.patch('/:userId/restore', VerifyToken, ValidateId('userId'), controller.restoreUser);
+router.patch('/:userId/restore', VerifyToken, RequireAdmin, ValidateId('userId'), controller.restoreUser);
 
 export default router;

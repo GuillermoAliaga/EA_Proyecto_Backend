@@ -46,4 +46,36 @@ export const VerifyToken = (req: Request, res: Response, next: NextFunction) => 
     }
 };
 
+// Permite mantener públicas las consultas de actividades y, cuando hay token,
+// aplicar correctamente los filtros exclusivos del administrador.
+export const OptionalVerifyToken = (req: Request, res: Response, next: NextFunction) => {
+    const header = req.headers.authorization;
+    if (!header) {
+        next();
+        return;
+    }
+
+    if (!header.startsWith('Bearer ')) {
+        res.status(401).json({ message: 'Token no válido' });
+        return;
+    }
+
+    try {
+        const payload = jwt.verify(header.slice('Bearer '.length), config.jwt.secret) as AccessTokenPayload;
+        req.user = { id: payload.sub, role: payload.role };
+        next();
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const RequireAdmin = (req: Request, res: Response, next: NextFunction) => {
+    // La gestión completa del backoffice queda reservada al rol ADMIN.
+    if (req.user?.role !== 'ADMIN') {
+        return res.status(403).json({ message: 'Se requiere el rol ADMIN' });
+    }
+
+    next();
+};
+
 export default VerifyToken;

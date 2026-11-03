@@ -1,10 +1,12 @@
 import express from 'express';
 import controller from '../controllers/Activity';
 import { ValidateId, ValidateJoi, Schemas } from '../middleware/Joi';
-import VerifyToken from '../middleware/VerifyToken';
+import VerifyToken, { OptionalVerifyToken, RequireAdmin } from '../middleware/VerifyToken';
+import { RequireAnyRole, RequireRole } from '../middleware/RequireRole';
 
 const router = express.Router();
 
+// ADMIN y STORE_HOST pueden publicar actividades, pero solo ADMIN puede gestionarlas.
 /**
  * @openapi
  * components:
@@ -209,7 +211,7 @@ const router = express.Router();
  * /activities:
  *   post:
  *     tags: [Activities]
- *     summary: Crea una nueva actividad
+ *     summary: Crea una nueva actividad (ADMIN o STORE_HOST)
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -228,7 +230,7 @@ const router = express.Router();
  *       422:
  *         description: Error de validación de Joi
  */
-router.post('/', VerifyToken, ValidateJoi(Schemas.activity.create), controller.createActivity);
+router.post('/', VerifyToken, RequireAnyRole('ADMIN', 'STORE_HOST'), ValidateJoi(Schemas.activity.create), controller.createActivity);
 
 /**
  * @openapi
@@ -243,6 +245,12 @@ router.post('/', VerifyToken, ValidateJoi(Schemas.activity.create), controller.c
  *       - in: query
  *         name: limit
  *         schema: { type: integer, default: 10 }
+ *       - in: query
+ *         name: sortBy
+ *         schema: { type: string, default: createdAt }
+ *       - in: query
+ *         name: sortOrder
+ *         schema: { type: string, enum: [asc, desc], default: desc }
  *       - in: query
  *         name: search
  *         schema: { type: string }
@@ -262,7 +270,48 @@ router.post('/', VerifyToken, ValidateJoi(Schemas.activity.create), controller.c
  *       200:
  *         description: Listado devuelto con éxito
  */
-router.get('/', controller.readAllPaginated);
+router.get('/', OptionalVerifyToken, controller.readAllPaginated);
+
+/**
+ * @openapi
+ * /activities/joined:
+ *   get:
+ *     tags: [Activities]
+ *     summary: Lista las actividades a las que está inscrito el usuario
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Actividades activas del usuario autenticado
+ *       401:
+ *         description: No autorizado
+ */
+router.get('/joined', VerifyToken, RequireRole('USER'), controller.readJoinedActivities);
+
+/**
+ * @openapi
+ * /activities/{activityId}/participants:
+ *   post:
+ *     tags: [Activities]
+ *     summary: Inscribe al usuario autenticado en una actividad disponible
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: activityId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Inscripción realizada
+ *       403:
+ *         description: Se requiere un usuario activo con rol USER
+ *       404:
+ *         description: Actividad no encontrada o archivada
+ *       409:
+ *         description: Ya está inscrito o la actividad no está disponible
+ */
+router.post('/:activityId/participants', VerifyToken, RequireRole('USER'), ValidateId('activityId'), controller.joinActivity);
 
 /**
  * @openapi
@@ -283,7 +332,7 @@ router.get('/', controller.readAllPaginated);
  *       404:
  *         description: Actividad no encontrada
  */
-router.get('/:activityId', ValidateId('activityId'), controller.readActivity);
+router.get('/:activityId', OptionalVerifyToken, ValidateId('activityId'), controller.readActivity);
 
 /**
  * @openapi
@@ -316,7 +365,7 @@ router.get('/:activityId', ValidateId('activityId'), controller.readActivity);
  *       422:
  *         description: Parámetros del body no permitidos o inválidos
  */
-router.put('/:activityId', VerifyToken, ValidateId('activityId'), ValidateJoi(Schemas.activity.update), controller.updateActivity);
+router.put('/:activityId', VerifyToken, RequireAdmin, ValidateId('activityId'), ValidateJoi(Schemas.activity.update), controller.updateActivity);
 
 /**
  * @openapi
@@ -343,7 +392,7 @@ router.put('/:activityId', VerifyToken, ValidateId('activityId'), ValidateJoi(Sc
  *       400:
  *         description: Lista de IDs requerida
  */
-router.patch('/bulk-soft-delete', VerifyToken, controller.bulkSoftDelete);
+router.patch('/bulk-soft-delete', VerifyToken, RequireAdmin, controller.bulkSoftDelete);
 
 /**
  * @openapi
@@ -368,7 +417,7 @@ router.patch('/bulk-soft-delete', VerifyToken, controller.bulkSoftDelete);
  *       204:
  *         description: Actividades eliminadas de la BD
  */
-router.delete('/bulk', VerifyToken, controller.bulkHardDelete);
+router.delete('/bulk', VerifyToken, RequireAdmin, controller.bulkHardDelete);
 
 /**
  * @openapi
@@ -389,7 +438,7 @@ router.delete('/bulk', VerifyToken, controller.bulkHardDelete);
  *       404:
  *         description: Actividad no encontrada
  */
-router.patch('/:activityId/soft-delete', VerifyToken, ValidateId('activityId'), controller.softDeleteActivity);
+router.patch('/:activityId/soft-delete', VerifyToken, RequireAdmin, ValidateId('activityId'), controller.softDeleteActivity);
 
 /**
  * @openapi
@@ -410,6 +459,6 @@ router.patch('/:activityId/soft-delete', VerifyToken, ValidateId('activityId'), 
  *       404:
  *         description: Actividad no encontrada
  */
-router.delete('/:activityId', VerifyToken, ValidateId('activityId'), controller.hardDeleteActivity);
+router.delete('/:activityId', VerifyToken, RequireAdmin, ValidateId('activityId'), controller.hardDeleteActivity);
 
 export default router;

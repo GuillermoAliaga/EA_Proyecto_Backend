@@ -1,10 +1,11 @@
 import express from 'express';
 import controller from '../controllers/Report';
 import { ValidateId, ValidateJoi, Schemas } from '../middleware/Joi';
-import VerifyToken from '../middleware/VerifyToken';
+import VerifyToken, { RequireAdmin } from '../middleware/VerifyToken';
 
 const router = express.Router();
 
+// Cualquier cuenta autenticada puede crear reportes y ADMIN puede revisarlos.
 /**
  * @openapi
  * components:
@@ -75,7 +76,7 @@ const router = express.Router();
  * /reports:
  *   post:
  *     tags: [Reports]
- *     summary: Crea un reporte de denuncia (Usuario autenticado)
+ *     summary: Crea un reporte de denuncia (cualquier usuario autenticado)
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -110,6 +111,15 @@ router.post('/', VerifyToken, ValidateJoi(Schemas.report.create), controller.cre
  *         name: limit
  *         schema: { type: integer, default: 10 }
  *       - in: query
+ *         name: sortBy
+ *         schema: { type: string, default: createdAt }
+ *       - in: query
+ *         name: sortOrder
+ *         schema: { type: string, enum: [asc, desc], default: desc }
+ *       - in: query
+ *         name: search
+ *         schema: { type: string }
+ *       - in: query
  *         name: status
  *         schema: { type: string, enum: [PENDING, REVIEWED, RESOLVED, DISMISSED] }
  *       - in: query
@@ -127,7 +137,7 @@ router.post('/', VerifyToken, ValidateJoi(Schemas.report.create), controller.cre
  *       401:
  *         description: No autorizado
  */
-router.get('/', VerifyToken, controller.readAllPaginated);
+router.get('/', VerifyToken, RequireAdmin, controller.readAllPaginated);
 
 /**
  * @openapi
@@ -148,7 +158,7 @@ router.get('/', VerifyToken, controller.readAllPaginated);
  *       404:
  *         description: Reporte no encontrado
  */
-router.get('/:reportId', VerifyToken, ValidateId('reportId'), controller.readReport);
+router.get('/:reportId', VerifyToken, RequireAdmin, ValidateId('reportId'), controller.readReport);
 
 /**
  * @openapi
@@ -175,7 +185,7 @@ router.get('/:reportId', VerifyToken, ValidateId('reportId'), controller.readRep
  *       404:
  *         description: Reporte no encontrado
  */
-router.put('/:reportId', VerifyToken, ValidateId('reportId'), ValidateJoi(Schemas.report.update), controller.updateReport);
+router.put('/:reportId', VerifyToken, RequireAdmin, ValidateId('reportId'), ValidateJoi(Schemas.report.update), controller.updateReport);
 
 /**
  * @openapi
@@ -200,7 +210,7 @@ router.put('/:reportId', VerifyToken, ValidateId('reportId'), ValidateJoi(Schema
  *       204:
  *         description: Reportes archivados lógicamente
  */
-router.patch('/bulk-soft-delete', VerifyToken, controller.bulkSoftDelete);
+router.patch('/bulk-soft-delete', VerifyToken, RequireAdmin, controller.bulkSoftDelete);
 
 /**
  * @openapi
@@ -225,7 +235,7 @@ router.patch('/bulk-soft-delete', VerifyToken, controller.bulkSoftDelete);
  *       204:
  *         description: Reportes eliminados físicamente de la BD
  */
-router.delete('/bulk', VerifyToken, controller.bulkHardDelete);
+router.delete('/bulk', VerifyToken, RequireAdmin, controller.bulkHardDelete);
 
 /**
  * @openapi
@@ -246,7 +256,7 @@ router.delete('/bulk', VerifyToken, controller.bulkHardDelete);
  *       404:
  *         description: Reporte no encontrado
  */
-router.patch('/:reportId/soft-delete', VerifyToken, ValidateId('reportId'), controller.softDeleteReport);
+router.patch('/:reportId/soft-delete', VerifyToken, RequireAdmin, ValidateId('reportId'), controller.softDeleteReport);
 
 /**
  * @openapi
@@ -267,6 +277,6 @@ router.patch('/:reportId/soft-delete', VerifyToken, ValidateId('reportId'), cont
  *       404:
  *         description: Reporte no encontrado
  */
-router.delete('/:reportId', VerifyToken, ValidateId('reportId'), controller.hardDeleteReport);
+router.delete('/:reportId', VerifyToken, RequireAdmin, ValidateId('reportId'), controller.hardDeleteReport);
 
 export default router;

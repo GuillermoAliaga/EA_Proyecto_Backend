@@ -30,6 +30,7 @@
         "joi-to-swagger": "^6.2.0",
         "jsonwebtoken": "^9.0.3",
         "mongoose": "^9.10.1",
+        "socket.io": "^4.8.4",
         "swagger-jsdoc": "^6.3.0",
         "swagger-ui-express": "^5.0.1"
     },

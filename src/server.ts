@@ -9,11 +9,11 @@ import ErrorHandler from './middleware/ErrorHandler';
 import swaggerUi from 'swagger-ui-express'; // permite mostrar Swagger en el navegador.
 import swaggerDocument from './config/swagger'; // importa el documento que hemos creado en swagger.ts
 import cookieParser from 'cookie-parser';
-import cors from 'cors';
 import authRoutes from './routes/Auth';
 import userRoutes from './routes/User';
 import activityRoutes from './routes/Activity';
 import reportRoutes from './routes/Report';
+import { attachChat } from './services/ChatService';
 
 const router = express();
 
@@ -36,7 +36,7 @@ const StartServer = () => {
 
     /** CORS */
     // Con cookies no vale origin '*': hay que indicar el origen del front y activar credentials
-    router.use(cors({ origin: config.cors.origin, credentials: true }));
+    router.use(Cors);
 
     /** Routes */
     router.use('/auth', authRoutes);
@@ -68,5 +68,8 @@ const StartServer = () => {
 
     router.use(ErrorHandler);
 
-    http.createServer(router).listen(config.server.port, () => Logging.info(`Server is running on port ${config.server.port}`));
+    const server = http.createServer(router);
+    // El chat comparte el mismo servidor para usar la configuración común de la API.
+    attachChat(server);
+    server.listen(config.server.port, () => Logging.info(`Server is running on port ${config.server.port}`));
 };

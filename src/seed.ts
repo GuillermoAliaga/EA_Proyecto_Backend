@@ -4,12 +4,10 @@ import Logging from './library/Logging';
 import User from './models/User';
 import Activity from './models/Activity';
 import Report from './models/Report';
-import { SEED_USERS, getSeedActivities, getSeedReports } from './seed-data';
+import { DEFAULT_ADMIN, SEED_USERS, getSeedActivities, getSeedReports } from './seed-data';
 
-// Llena la base de datos con los datos de ejemplo de seed-data.ts.
-//
-//   npm run seed             inserta los datos solo si la base de datos está vacía
-//   npm run seed -- --reset  borra todo (autores, libros, usuarios, actividades y reportes) y vuelve a insertarlos
+// Carga los datos iniciales definidos en el archivo de datos.
+// La opción de reinicio borra las colecciones antes de volver a cargarlas.
 
 const reset = process.argv.includes('--reset');
 
@@ -18,7 +16,7 @@ const seed = async () => {
     Logging.info(`Conectado a ${config.mongo.url}`);
 
     if (reset) {
-        // Borrado físico completo de todas las colecciones
+        // El reinicio elimina los datos anteriores para cargar una base limpia.
         const usersDeleted = await User.deleteMany({});
         const activitiesDeleted = await Activity.deleteMany({});
         const reportsDeleted = await Report.deleteMany({});
@@ -30,14 +28,29 @@ const seed = async () => {
     const activitiesInDb = await Activity.countDocuments();
     const reportsInDb = await Report.countDocuments();
 
-    // Verificación de integridad: si alguna colección clave ya tiene datos, abortamos salvo flag --reset
+    // Conservamos los datos actuales y dejamos disponible la cuenta de administrador.
     if (usersInDb > 0 || activitiesInDb > 0 || reportsInDb > 0) {
+        const existingAdmin = await User.findOne({
+            email: DEFAULT_ADMIN.email,
+            deleted: false
+        });
+        if (existingAdmin) {
+            existingAdmin.name = DEFAULT_ADMIN.name!;
+            existingAdmin.password = DEFAULT_ADMIN.password!;
+            existingAdmin.role = 'ADMIN';
+            existingAdmin.bio = DEFAULT_ADMIN.bio;
+            existingAdmin.isBanned = false;
+            existingAdmin.refreshTokenHash = null;
+            await existingAdmin.save();
+        } else {
+            await User.create(DEFAULT_ADMIN);
+        }
+        Logging.info(`Administrador disponible: ${DEFAULT_ADMIN.email}`);
         Logging.warning('La base de datos ya contiene datos. Para reinicializarla ejecuta: npm run seed -- --reset');
         return;
     }
 
-    // 1. INSERCIÓN DE USUARIOS
-    // Se insertan mediante bucle secuencial y User.create() para activar los hooks pre-save (hashing de contraseña con bcrypt)
+    // Creamos las cuentas una a una para que se cifren sus contraseñas.
     const createdUsers = [];
     for (const userData of SEED_USERS) {
         const user = await User.create(userData);
@@ -45,7 +58,7 @@ const seed = async () => {
     }
     Logging.info(`Usuarios creados: ${createdUsers.length}`);
 
-    // 2. INSERCIÓN DE ACTIVIDADES VINCULADAS
+    // Buscamos las cuentas que usaremos como creadoras y participantes.
     const adminUser = createdUsers.find((u) => u.role === 'ADMIN');
     const storeUser = createdUsers.find((u) => u.role === 'STORE_HOST');
     const standardUser = createdUsers.find((u) => u.role === 'USER');
@@ -60,7 +73,7 @@ const seed = async () => {
     const createdActivities = await Activity.insertMany(activitiesData);
     Logging.info(`Actividades creadas: ${createdActivities.length}`);
 
-    // 3. INSERCIÓN DE REPORTES DE MODERACIÓN
+    // Relacionamos los reportes de ejemplo con datos que ya existen.
     if (createdActivities.length > 0) {
         // Enlaza el reporte al usuario estándar como denunciante y a la primera actividad como objetivo
         const reportsData = getSeedReports(standardUser._id.toString(), createdActivities[0]._id.toString());

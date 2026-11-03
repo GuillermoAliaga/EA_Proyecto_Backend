@@ -2,19 +2,18 @@ import { IUser } from './models/User';
 import { IActivity } from './models/Activity';
 import { IReport } from './models/Report';
 
-// ============================================================================
-// 1. USUARIOS (PROYECTO FINAL)
-// Roles: ADMIN, STORE_HOST, USER
-// Contraseña por defecto: "sprint1" (hasheada por el hook pre-save de User)
-// ============================================================================
+// Datos iniciales de las cuentas y sus permisos.
+// La contraseña de administrador se cifra antes de guardarse.
+export const DEFAULT_ADMIN: Partial<IUser> = {
+    name: 'Administrador',
+    email: 'admin@backoffice.com',
+    password: 'admin123',
+    role: 'ADMIN',
+    bio: 'Administrador principal del Backoffice'
+};
+
 export const SEED_USERS: Partial<IUser>[] = [
-    {
-        name: 'Admin General',
-        email: 'admin@app.com',
-        password: 'sprint1',
-        role: 'ADMIN',
-        bio: 'Administrador principal del Backoffice'
-    },
+    DEFAULT_ADMIN,
     {
         name: 'Goblin Games Store',
         email: 'tienda@goblingames.com',
@@ -38,10 +37,7 @@ export const SEED_USERS: Partial<IUser>[] = [
     }
 ];
 
-// ============================================================================
-// 2. ACTIVIDADES (PROYECTO FINAL)
-// Coordenadas GeoJSON Point [Longitud, Latitud] y LineString para rutas
-// ============================================================================
+// Crea actividades de ejemplo y las relaciona con las cuentas del seed.
 export const getSeedActivities = (adminId: string, storeId: string, userId: string): Partial<IActivity>[] => [
     {
         creatorId: userId,
@@ -58,7 +54,7 @@ export const getSeedActivities = (adminId: string, storeId: string, userId: stri
             isStoreLocation: false
         },
         schedule: {
-            startTime: new Date(Date.now() + 86400000), // En 24h
+            startTime: new Date(Date.now() + 86400000), // Empieza dentro de un día.
             endTime: new Date(Date.now() + 93600000)
         },
         capacity: {
@@ -91,7 +87,7 @@ export const getSeedActivities = (adminId: string, storeId: string, userId: stri
             isStoreLocation: true
         },
         schedule: {
-            startTime: new Date(Date.now() + 172800000), // En 48h
+            startTime: new Date(Date.now() + 172800000), // Empieza dentro de dos días.
             endTime: new Date(Date.now() + 187200000)
         },
         capacity: {
@@ -131,7 +127,7 @@ export const getSeedActivities = (adminId: string, storeId: string, userId: stri
             }
         },
         schedule: {
-            startTime: new Date(Date.now() + 259200000), // En 72h
+            startTime: new Date(Date.now() + 259200000), // Empieza dentro de tres días.
             endTime: new Date(Date.now() + 262800000)
         },
         capacity: {
@@ -145,10 +141,7 @@ export const getSeedActivities = (adminId: string, storeId: string, userId: stri
     }
 ];
 
-// ============================================================================
-// 3. REPORTES DE MODERACIÓN (PROYECTO FINAL)
-// Vinculados a los IDs generados dinámicamente en el seed
-// ============================================================================
+// Crea reportes de ejemplo relacionados con las cuentas y actividades generadas.
 export const getSeedReports = (reporterId: string, activityId: string): Partial<IReport>[] => [
     {
         reporterId: reporterId,

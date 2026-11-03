@@ -4,12 +4,13 @@ import Logging from '../library/Logging';
 import { hashPassword } from '../utils/password';
 
 // Roles que puede tener un usuario.
-// admin gestiona el backoffice (autores y libros); user solo puede usar el chat.
+// ADMIN gestiona usuarios, actividades y reportes.
+// USER puede consultar las actividades e inscribirse.
 export const USER_ROLES = ['USER', 'ADMIN', 'STORE_HOST'] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
 // Definimos los datos que puede tener un usuario.
-// Un usuario es quien inicia sesion en la aplicacion; no tiene nada que ver con los autores de los libros.
+// Un usuario es quien inicia sesión en la aplicación.
 export interface IUser {
     name: string;
     email: string;
@@ -20,12 +21,12 @@ export interface IUser {
     isBanned: boolean;
     refreshTokenHash?: string | null;
 
-    // Campos obligatorios para Soft Delete
+    // Estas fechas indican si la cuenta está archivada.
     deleted: boolean;
     deletedAt?: Date | null;
 }
 
-// ---- Interfaces de la autenticacion con JWT ----
+// Tipos usados para crear y leer los tokens de sesión.
 
 // Lo que guardamos dentro del access token (el "payload" del JWT).
 // sub (subject) es el id del usuario y role su rol. La librería añade además iat (cuándo se
@@ -71,7 +72,7 @@ const UserSchema: Schema = new Schema(
         bio: { type: String, default: null },
         isBanned: { type: Boolean, default: false },
 
-        // Campos obligatorios para Soft Delete
+        // Estos campos permiten archivar la cuenta sin borrarla de la base de datos.
         deleted: { type: Boolean, default: false },
         deletedAt: { type: Date, default: null },
 
@@ -89,7 +90,7 @@ const UserSchema: Schema = new Schema(
         toJSON: {
             transform: (document, result: Record<string, unknown>) => {
                 delete result.password;
-                // EXPLICAR EN EL VÍDEO
+                // El resumen del token tampoco debe aparecer en una respuesta pública.
                 delete result.refreshTokenHash;
                 return result;
             }
@@ -97,7 +98,7 @@ const UserSchema: Schema = new Schema(
     }
 );
 
-//Índice único parcial: permite registrar de nuevo un email si el usuario fue borrado lógicamente (deleted=true)
+// Este índice permite repetir un correo cuando la cuenta anterior está archivada.
 UserSchema.index({ email: 1 }, { unique: true, partialFilterExpression: { deleted: false } });
 
 // Este hook se ejecuta antes de guardar un usuario en la base de datos

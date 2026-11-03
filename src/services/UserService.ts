@@ -7,6 +7,7 @@ export interface IUserSummary {
     role: UserRole;
     avatarUrl?: string;
     deleted: boolean;
+    deletedAt?: Date | null;
 }
 
 export interface IUserProfile {
@@ -21,6 +22,12 @@ export interface IUserProfile {
     deletedAt?: Date | null;
 }
 
+export interface IChatUser {
+    _id: string;
+    name: string;
+    avatarUrl?: string;
+}
+
 export interface UserQueryParams {
     page?: number;
     limit?: number;
@@ -33,13 +40,14 @@ export interface UserQueryParams {
     userRole?: string;
 }
 
+// El registro público y la gestión administrativa comparten el mismo modelo.
 // Crear un usuario nuevo
 export const createUser = (data: IUser) => {
     const user = new User(data);
     return user.save();
 };
 
-// Buscar usuario por su ID (Para GET /users/me o detalle en Backoffice)
+// Busca una cuenta y oculta las archivadas a quien no sea administrador.
 export const getUserById = async (userId: string, userRole?: string): Promise<IUserProfile | null> => {
     const filter: Record<string, unknown> = { _id: userId };
 
@@ -64,8 +72,9 @@ export const getUserById = async (userId: string, userRole?: string): Promise<IU
     };
 };
 
-// Listado paginado de usuarios con filtros, ordenación y Soft Delete por Rol
+// Devuelve usuarios por páginas y aplica los filtros de la tabla.
 export const getAllUsersPaginated = async (params: UserQueryParams) => {
+    // La página y el límite determinan cuántos usuarios se leen de la base de datos.
     const page = Math.max(1, Number(params.page) || 1);
     const limit = Math.max(1, Number(params.limit) || 10);
     const skip = (page - 1) * limit;
@@ -75,7 +84,7 @@ export const getAllUsersPaginated = async (params: UserQueryParams) => {
 
     const filter: Record<string, unknown> = {};
 
-    // Control de Soft Delete según rol JWT
+    // Las cuentas archivadas solo aparecen cuando un administrador las solicita.
     if (params.userRole !== 'ADMIN') {
         filter.deleted = false;
     } else if (params.showDeleted !== true) {
@@ -98,22 +107,41 @@ export const getAllUsersPaginated = async (params: UserQueryParams) => {
         User.countDocuments(filter)
     ]);
 
-    // Mapeamos a IUserSummary
+    // Enviamos solo los datos que necesita la tabla y nunca la contraseña.
     const summaries: IUserSummary[] = users.map((user) => ({
         _id: String(user._id),
         name: user.name,
         email: user.email,
         role: user.role,
         avatarUrl: user.avatarUrl,
-        deleted: user.deleted
+        deleted: user.deleted,
+        deletedAt: user.deletedAt
     }));
 
     return {
-        users: summaries,
-        totalCount,
+        data: summaries,
+        totalDocs: totalCount,
         totalPages: Math.ceil(totalCount / limit),
         currentPage: page
     };
+};
+
+export const getChatUsers = async (currentUserId: string): Promise<IChatUser[]> => {
+    // El chat solo necesita mostrar perfiles activos distintos de la cuenta actual.
+    const users = await User.find({
+        _id: { $ne: currentUserId },
+        deleted: false,
+        isBanned: false
+    })
+        .select('_id name avatarUrl')
+        .sort({ name: 1 })
+        .lean();
+
+    return users.map((user) => ({
+        _id: String(user._id),
+        name: user.name,
+        avatarUrl: user.avatarUrl ?? undefined
+    }));
 };
 
 // Actualizar un usuario
@@ -125,27 +153,27 @@ export const updateUser = (userId: string, data: Partial<IUser>) => {
     });
 };
 
-//Restaurar un usuario borrado (Soft Delete) por su ID
+// Recupera una cuenta archivada usando su identificador.
 export const restoreUser = (userId: string) => {
     return User.findByIdAndUpdate(userId, { deleted: false, deletedAt: null }, { new: true });
 };
 
-// Soft Delete unitario (borrado lógico)
+// Archiva una cuenta sin quitarla de la base de datos.
 export const softDeleteUser = (userId: string) => {
     return User.findByIdAndUpdate(userId, { deleted: true, deletedAt: new Date() }, { new: true });
 };
 
-// Soft Delete masivo (bulk)
+// Archiva varias cuentas en una sola operación.
 export const bulkSoftDeleteUsers = (ids: string[]) => {
     return User.updateMany({ _id: { $in: ids } }, { $set: { deleted: true, deletedAt: new Date() } });
 };
 
-// Hard Delete unitario (borrado físico)
+// Elimina una cuenta de forma definitiva.
 export const hardDeleteUser = (userId: string) => {
     return User.findByIdAndDelete(userId);
 };
 
-// Hard Delete masivo (bulk)
+// Elimina varias cuentas de forma definitiva.
 export const bulkHardDeleteUsers = (ids: string[]) => {
     return User.deleteMany({ _id: { $in: ids } });
 };
@@ -154,6 +182,7 @@ export default {
     createUser,
     getUserById,
     getAllUsersPaginated,
+    getChatUsers,
     updateUser,
     restoreUser,
     softDeleteUser,

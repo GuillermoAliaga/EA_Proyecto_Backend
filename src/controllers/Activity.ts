@@ -4,10 +4,8 @@ import ActivityService from '../services/ActivityService';
 // Crear una actividad
 const createActivity = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        // Si el usuario está autenticado, asignamos automáticamente creatorId
-        if (req.user && !req.body.creatorId) {
-            req.body.creatorId = req.user.id;
-        }
+        // El creador se toma de la sesión y no del contenido enviado por el navegador.
+        req.body.creatorId = req.user!.id;
 
         const activity = await ActivityService.createActivity(req.body);
         res.status(201).json({ activity });
@@ -36,6 +34,7 @@ const readActivity = async (req: Request<{ activityId: string }>, res: Response,
 // Leer todas las actividades paginadas
 const readAllPaginated = async (req: Request, res: Response, next: NextFunction) => {
     try {
+        // Los filtros y el rol se envían al servicio para aplicar las reglas del listado.
         const result = await ActivityService.getAllActivitiesPaginated({
             page: Number(req.query.page),
             limit: Number(req.query.limit),
@@ -50,6 +49,43 @@ const readAllPaginated = async (req: Request, res: Response, next: NextFunction)
         });
 
         res.status(200).json(result);
+    } catch (error) {
+        next(error);
+    }
+};
+
+const readJoinedActivities = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        // El identificador viene del token para consultar solo las actividades propias.
+        const activities = await ActivityService.getJoinedActivities(req.user!.id);
+        res.status(200).json({ activities });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const joinActivity = async (req: Request<{ activityId: string }>, res: Response, next: NextFunction) => {
+    try {
+        // El servicio revisa el aforo, el estado y si la persona ya está inscrita.
+        const result = await ActivityService.joinActivity(req.params.activityId, req.user!.id);
+
+        if (result.status === 'joined') {
+            return res.status(200).json({ activity: result.activity });
+        }
+
+        if (result.status === 'not_found') {
+            return res.status(404).json({ message: 'Actividad no encontrada o archivada' });
+        }
+
+        if (result.status === 'user_not_allowed') {
+            return res.status(403).json({ message: 'Solo usuarios activos pueden apuntarse a actividades' });
+        }
+
+        return res.status(409).json({
+            message: result.status === 'already_joined'
+                ? 'Ya estás apuntado a esta actividad'
+                : 'La actividad no está disponible o ya alcanzó su capacidad'
+        });
     } catch (error) {
         next(error);
     }
@@ -71,7 +107,7 @@ const updateActivity = async (req: Request<{ activityId: string }>, res: Respons
     }
 };
 
-// Soft Delete unitario
+// Archiva una actividad sin eliminar sus datos.
 const softDeleteActivity = async (req: Request<{ activityId: string }>, res: Response, next: NextFunction) => {
     const activityId = req.params.activityId;
 
@@ -87,7 +123,7 @@ const softDeleteActivity = async (req: Request<{ activityId: string }>, res: Res
     }
 };
 
-// Soft Delete masivo
+// Archiva varias actividades en una sola operación.
 const bulkSoftDelete = async (req: Request<{}, {}, { ids: string[] }>, res: Response, next: NextFunction) => {
     try {
         const { ids } = req.body;
@@ -102,7 +138,7 @@ const bulkSoftDelete = async (req: Request<{}, {}, { ids: string[] }>, res: Resp
     }
 };
 
-// Hard Delete unitario
+// Elimina una actividad de forma definitiva.
 const hardDeleteActivity = async (req: Request<{ activityId: string }>, res: Response, next: NextFunction) => {
     const activityId = req.params.activityId;
 
@@ -118,7 +154,7 @@ const hardDeleteActivity = async (req: Request<{ activityId: string }>, res: Res
     }
 };
 
-// Hard Delete masivo
+// Elimina varias actividades de forma definitiva.
 const bulkHardDelete = async (req: Request<{}, {}, { ids: string[] }>, res: Response, next: NextFunction) => {
     try {
         const { ids } = req.body;
@@ -137,6 +173,8 @@ export default {
     createActivity,
     readActivity,
     readAllPaginated,
+    readJoinedActivities,
+    joinActivity,
     updateActivity,
     softDeleteActivity,
     bulkSoftDelete,

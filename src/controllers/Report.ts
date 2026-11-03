@@ -5,9 +5,10 @@ import { ReportReason, ReportStatus, ReportTargetType } from '../models/Report';
 // Crear un reporte
 const createReport = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        if (req.user && !req.body.reporterId) {
-            req.body.reporterId = req.user.id;
-        }
+        // El autor y el estado inicial los decide el servidor.
+        req.body.reporterId = req.user!.id;
+        req.body.status = 'PENDING';
+        delete req.body.adminNotes;
 
         const report = await ReportService.createReport(req.body);
         res.status(201).json({ report });
@@ -36,11 +37,13 @@ const readReport = async (req: Request<{ reportId: string }>, res: Response, nex
 // Leer todos los reportes paginados (Backoffice)
 const readAllPaginated = async (req: Request, res: Response, next: NextFunction) => {
     try {
+        // El servicio usa estos datos para filtrar y paginar la lista administrativa.
         const result = await ReportService.getAllReportsPaginated({
             page: Number(req.query.page),
             limit: Number(req.query.limit),
             sortBy: req.query.sortBy as string,
             sortOrder: req.query.sortOrder as 'asc' | 'desc',
+            search: req.query.search as string,
             status: req.query.status as ReportStatus,
             reason: req.query.reason as ReportReason,
             targetType: req.query.targetType as ReportTargetType,
@@ -54,7 +57,7 @@ const readAllPaginated = async (req: Request, res: Response, next: NextFunction)
     }
 };
 
-// Actualizar reporte (ResoluciÃ³n/Notas de Admin)
+// Actualiza el estado y las notas del equipo administrador.
 const updateReport = async (req: Request<{ reportId: string }>, res: Response, next: NextFunction) => {
     const reportId = req.params.reportId;
 
@@ -70,7 +73,7 @@ const updateReport = async (req: Request<{ reportId: string }>, res: Response, n
     }
 };
 
-// Soft Delete unitario
+// Archiva un reporte sin eliminar sus datos.
 const softDeleteReport = async (req: Request<{ reportId: string }>, res: Response, next: NextFunction) => {
     const reportId = req.params.reportId;
 
@@ -86,7 +89,7 @@ const softDeleteReport = async (req: Request<{ reportId: string }>, res: Respons
     }
 };
 
-// Soft Delete masivo
+// Archiva varios reportes en una sola operación.
 const bulkSoftDelete = async (req: Request<{}, {}, { ids: string[] }>, res: Response, next: NextFunction) => {
     try {
         const { ids } = req.body;
@@ -101,7 +104,7 @@ const bulkSoftDelete = async (req: Request<{}, {}, { ids: string[] }>, res: Resp
     }
 };
 
-// Hard Delete unitario
+// Elimina un reporte de forma definitiva.
 const hardDeleteReport = async (req: Request<{ reportId: string }>, res: Response, next: NextFunction) => {
     const reportId = req.params.reportId;
 
@@ -117,7 +120,7 @@ const hardDeleteReport = async (req: Request<{ reportId: string }>, res: Respons
     }
 };
 
-// Hard Delete masivo
+// Elimina varios reportes de forma definitiva.
 const bulkHardDelete = async (req: Request<{}, {}, { ids: string[] }>, res: Response, next: NextFunction) => {
     try {
         const { ids } = req.body;
